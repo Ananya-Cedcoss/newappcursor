@@ -1,0 +1,125 @@
+<div class="wishlist-inspire__icon" x-data="wishlist">
+
+  <button type="button"  @click.debounce="addtowishlist()">
+  <svg class="wishlist-inspire__icon--svg" viewBox="0 0 24 24"  :fill="wishlisted ? '#000' : '#fff'" >
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c3.08 0 5.5 2.42 5.5 5.5 0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+   {% if block.settings.text != blank  %}
+    <span class="wishlist-inspire__icon-text"
+      x-text="wishlisted ? 'Remove from Wishlist' : '{{ block.settings.text }}'">
+      {{ block.settings.text }}
+    
+    </span>
+   {% endif %}
+  </button>
+
+
+  
+</div>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('wishlist', () => ({
+          appUrl:"https://engineer-panic-incentives-lowest.trycloudflare.com",
+            wishlisted: false,
+
+
+
+         
+            init(){
+              fetch(this.appUrl + "/api/wishlist"+"?customerId={{ customer.id }}&productId={{ product.id }}&shop={{ shop.permanent_domain }}")
+                  .then(response => response.json())
+                  .then(result => {
+                      if(result.data.length > 0){
+                        this.wishlisted = true;
+                      }
+                  })
+                  .catch(error => console.log('error', error));
+            },
+            addtowishlist() {
+               
+                // todo : senf to database
+                {% unless customer  %}
+                  alert('Please log in to add items to your wishlist.');
+                  return;
+                {% endunless %}
+                  var formdata = new FormData();
+                  formdata.append("customerId", "{{ customer.id }}" );
+                  formdata.append("productId", "{{ product.id}}");
+                  formdata.append("shop", "{{ shop.permanent_domain}}");
+                   formdata.append("_action", "POST");
+                   if ( this.wishlisted){
+                    this.wishlisted = false;
+                    formdata.append("_action", "DELETE");
+                   }
+                
+                  var requestOptions = {
+                    method: 'POST',
+                    body: formdata,
+                    redirect: 'follow'
+                  };
+
+                  fetch(this.appUrl+"/api/wishlist", requestOptions)
+                    .then(response => response.text())
+                    .then(result => {
+                       this.wishlisted = ! this.wishlisted
+                    })
+                    .catch(error => console.log('error', error));
+            }
+        }))
+    })
+</script>
+<style>
+.wishlist-inspire__icon {
+  display: flex;
+  justify-content: center;
+ max-width: 44rem;
+}
+.wishlist-inspire__icon button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display:flex,
+  gap: 0.5rem;
+  align-items: center;
+}
+.wishlist-inspire__icon--svg {
+  width: 1.2em;
+  height: 1.2em;
+     /* Inner color */
+  stroke: black;       /* Border color */
+  stroke-width: 2;   /* Thickness of the border */
+  transition: transform 0.2s ease;
+}
+
+
+</style>
+
+{% schema %}
+{
+  "name": "Wishlist Icon",
+  "target": "section",
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product",
+      "autofill": true
+    }, 
+    {
+      "type": "text",
+      "id": "text",
+      "label": "Text",
+      "default": "Add to Wishlist"
+    },
+    {
+      "type": "color",
+      "id": "colour",
+      "label": "Colour",
+      "default": "#ff0000"
+    }
+  ]
+}
+{% endschema %}
