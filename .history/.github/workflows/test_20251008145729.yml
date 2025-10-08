@@ -45,9 +45,8 @@ jobs:
       run: |
         npm test -- --ci --reporters=default --reporters=jest-junit
         env:
-        JEST_JUNIT_OUTPUT: junit.xml    
+        JEST_JUNIT_OUTPUT: junit.xml     # 👈 ensures file is created at root
       continue-on-error: true
-      
     
     - name: Upload test coverage
       uses: actions/upload-artifact@v4

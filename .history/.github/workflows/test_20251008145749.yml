@@ -47,7 +47,6 @@ jobs:
         env:
         JEST_JUNIT_OUTPUT: junit.xml    
       continue-on-error: true
-      
     
     - name: Upload test coverage
       uses: actions/upload-artifact@v4
