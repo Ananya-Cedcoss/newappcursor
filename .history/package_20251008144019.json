@@ -13,15 +13,13 @@
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate deploy",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
-    "lint:fix": "eslint --fix --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "shopify": "shopify",
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "jest",
-    "test:ci": "jest --ci --reporters=default --reporters=jest-junit",
-    "test:coverage": "jest --coverage"
+    "test:ci": "jest --ci --reporters=default --reporters=jest-junit"
   },
   "jest": {
     "reporters": [
@@ -54,7 +52,6 @@
   },
   "devDependencies": {
     "@shopify/api-codegen-preset": "^1.1.1",
-    "@shopify/eslint-plugin": "^42.0.1",
     "@shopify/polaris-types": "^1.0.0",
     "@types/eslint": "^9.6.1",
     "@types/jest": "^30.0.0",
