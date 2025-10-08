@@ -3,7 +3,7 @@ name: Pull Request Quality Checks
 on:
   pull_request:
 
-  push:
+  push
 
 jobs:
   review:
@@ -38,7 +38,7 @@ jobs:
       - name: Generate Changelog
         uses: metcalfc/changelog-generator@v4.1.0
         with:
-          myToken: ${{ secrets.GITHUB_TOKEN }}
+          myToken: ${{ secrets.GIT_TOKEN }}
 
       # 5️⃣ Risk Assessment (schema/API changes)
       - name: Detect Dangerous Changes
