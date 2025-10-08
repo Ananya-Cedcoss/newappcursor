@@ -12,7 +12,4 @@ module.exports = {
   transformIgnorePatterns: [
     '/node_modules/',
   ],
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
 };
