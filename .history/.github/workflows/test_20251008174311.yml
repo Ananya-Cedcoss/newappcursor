@@ -53,7 +53,7 @@ jobs:
         git add .
         git diff-index --quiet HEAD || git commit -m "chore: auto-fix lint issues [skip ci]"
         git push
-        continue-on-error: true
+         continue-on-error: true
     
     - name: Run tests
       run: |
