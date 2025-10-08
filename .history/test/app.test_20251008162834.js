@@ -168,13 +168,13 @@ describe('Modern Valuation App Test Suite', () => {
       const schemaExists = await fs.promises.access(schemaPath)
         .then(() => true)
         .catch(() => false);
-
+      
       expect(schemaExists).toBe(true);
     });
 
     it('should have a Session model with correct fields', async () => {
       const schemaContent = await fs.promises.readFile(schemaPath, 'utf-8');
-
+      
       const sessionModelFields = [
         'id',
         'shop',

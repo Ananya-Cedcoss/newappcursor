@@ -13,8 +13,8 @@ const shopify = shopifyApp({
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.October25,
           scopes: process.env.SCOPES?.split(","),
-          appUrl: process.env.SHOPIFY_APP_URL || "",
-           authPathPrefix: "/auth",
+  appUrl: process.env.SHOPIFY_APP_URL || "",
+  authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   ...(process.env.SHOP_CUSTOM_DOMAIN

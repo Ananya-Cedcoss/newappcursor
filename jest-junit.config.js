@@ -3,5 +3,5 @@ module.exports = {
   outputName: "junit.xml",
   classNameTemplate: "{classname}",
   titleTemplate: "{title}",
-  suiteNameTemplate: "{filepath}"
+  suiteNameTemplate: "{filepath}",
 };

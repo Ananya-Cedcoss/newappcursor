@@ -14,8 +14,7 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:import/recommended',
     'plugin:import/typescript',
-    'plugin:@shopify/typescript',
-    'plugin:@shopify/react'
+    'plugin:@shopify/recommended'
   ],
   parser: '@typescript-eslint/parser',
   plugins: [
@@ -50,7 +49,8 @@ module.exports = {
       'newlines-between': 'always'
     }],
     'no-console': ['warn', { allow: ['warn', 'error'] }],
-    'react/react-in-jsx-scope': 'off'
+    'react/react-in-jsx-scope': 'off',
+    '@shopify/prefer-early-return': 'error'
   },
   env: {
     browser: true,
