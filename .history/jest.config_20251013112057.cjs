@@ -19,11 +19,6 @@ module.exports = {
   bail: false,
   // Generate coverage report
   collectCoverage: true,
-
-  collectCoverageFrom: [
-    "src/**/*.{js,jsx,ts,tsx}",
-    "!src/**/*.d.ts"
-  ],
   // Generate JUnit report for GitHub Actions
   reporters: [
     'default',
