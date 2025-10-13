@@ -1,3 +1,5 @@
+//verifying the app’s backend configuration and integrity.
+
 import path from 'path';
 import fs from 'fs';
 
@@ -29,7 +31,7 @@ const createMockRequest = (url) => ({
   method: 'GET',
 });
 
-describe('Modern Valuation App Test Suite', () => {
+describe('Sustainable Marketplace App Test Suite', () => {
   let prisma;
 
   beforeAll(() => {

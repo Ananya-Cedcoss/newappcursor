@@ -7,62 +7,90 @@
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
   root: true,
-  extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:import/recommended',
-    'plugin:import/typescript',
-    'plugin:@shopify/typescript',
-    'plugin:@shopify/react'
-  ],
-  parser: '@typescript-eslint/parser',
-  plugins: [
-    'react', 
-    'react-hooks', 
-    '@typescript-eslint', 
-    'import', 
-    '@shopify'
-  ],
-  settings: {
-    react: {
-      version: 'detect'
+  parserOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
+    ecmaFeatures: {
+      jsx: true,
     },
-    'import/resolver': {
-      typescript: {}
-    }
-  },
-  rules: {
-    // Customize rules as needed
-    'react/prop-types': 'off',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    'import/no-unresolved': 'error',
-    'import/order': ['error', {
-      'groups': [
-        'builtin', 
-        'external', 
-        'internal', 
-        'parent', 
-        'sibling', 
-        'index'
-      ],
-      'newlines-between': 'always'
-    }],
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
-    'react/react-in-jsx-scope': 'off'
   },
   env: {
     browser: true,
-    es2021: true,
-    node: true,
-    jest: true
+    commonjs: true,
+    es6: true,
   },
-  ignorePatterns: [
-    'node_modules/', 
-    'build/', 
-    'dist/', 
-    'coverage/',
-    '.eslintrc.cjs'
-  ]
+  ignorePatterns: ["!**/.server", "!**/.client"],
+
+  // Base config
+  extends: ["eslint:recommended"],
+
+  overrides: [
+    // React
+    {
+      files: ["**/*.{js,jsx,ts,tsx}"],
+      plugins: ["react", "jsx-a11y"],
+      extends: [
+        "plugin:react/recommended",
+        "plugin:react/jsx-runtime",
+        "plugin:react-hooks/recommended",
+        "plugin:jsx-a11y/recommended",
+      ],
+      settings: {
+        react: {
+          version: "detect",
+        },
+        formComponents: ["Form"],
+        linkComponents: [
+          { name: "Link", linkAttribute: "to" },
+          { name: "NavLink", linkAttribute: "to" },
+        ],
+        "import/resolver": {
+          typescript: {},
+        },
+      },
+      rules: {
+        "react/no-unknown-property": ["error", { ignore: ["variant"] }],
+      },
+    },
+
+    // Typescript
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: ["@typescript-eslint", "import"],
+      parser: "@typescript-eslint/parser",
+      settings: {
+        "import/internal-regex": "^~/",
+        "import/resolver": {
+          node: {
+            extensions: [".ts", ".tsx"],
+          },
+          typescript: {
+            alwaysTryTypes: true,
+          },
+        },
+      },
+      extends: [
+        "plugin:@typescript-eslint/recommended",
+        "plugin:import/recommended",
+        "plugin:import/typescript",
+      ],
+    },
+
+    // Node
+    {
+      files: [
+        ".eslintrc.cjs",
+        "vite.config.{js,ts}",
+        ".graphqlrc.{js,ts}",
+        "shopify.server.{js,ts}",
+        "**/*.server.{js,ts}",
+      ],
+      env: {
+        node: true,
+      },
+    },
+  ],
+  globals: {
+    shopify: "readonly"
+  },
 };

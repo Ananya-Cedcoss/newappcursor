@@ -10,7 +10,7 @@ module.exports = {
     '^.+\\.jsx?$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/','/e2e/'
   ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -21,9 +21,11 @@ module.exports = {
   collectCoverage: true,
 
   collectCoverageFrom: [
-    "src/**/*.{js,jsx,ts,tsx}",
-    "!src/**/*.d.ts"
+    "src/**/*.{js,ts,jsx,tsx}",  // track coverage from all source files
+    "!**/node_modules/**",
+    "!**/test/**"  
   ],
+  coverageReporters: ["text-summary", "html"],
   // Generate JUnit report for GitHub Actions
   reporters: [
     'default',
