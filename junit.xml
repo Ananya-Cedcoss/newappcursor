@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="12" failures="0" errors="0" time="2.257">
+  <testsuite name="test/first.test.js" errors="0" failures="0" skipped="0" timestamp="2025-10-08T10:58:51" time="0.929" tests="1">
+    <testcase classname="addition" name="adds numbers correctly" time="0.012">
+    </testcase>
+  </testsuite>
+  <testsuite name="test/app.test.js" errors="0" failures="0" skipped="0" timestamp="2025-10-08T10:58:51" time="1.132" tests="11">
+    <testcase classname="Modern Valuation App Test Suite Application Configuration" name="should have a valid Shopify app configuration" time="0.011">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Database Interactions" name="should connect to the database" time="0.038">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Database Interactions" name="should have a session table with correct schema" time="0.005">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Routes and Navigation Index Route Loader" name="should call loader with mock request" time="0.006">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Routes and Navigation Index Route Loader" name="should return showForm based on login availability" time="0.003">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Routes and Navigation" name="should have an authentication route" time="0.001">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Webhook Handling" name="should have a webhook route for app scopes update" time="0.001">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Build and Deployment" name="should have a valid package.json with required scripts" time="0.003">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Build and Deployment" name="should have correct Node.js engine requirement" time="0.001">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Prisma Schema Validation" name="should have a valid Prisma schema file" time="0.001">
+    </testcase>
+    <testcase classname="Modern Valuation App Test Suite Prisma Schema Validation" name="should have a Session model with correct fields" time="0.005">
+    </testcase>
+  </testsuite>
+</testsuites>
