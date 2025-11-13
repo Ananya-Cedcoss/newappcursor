@@ -30,3 +30,36 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model Discount {
+  id                 String          @id @default(uuid())
+  code               String          @unique
+  type               String          // 'percentage' or 'fixed'
+  value              Float
+  description        String?
+  active             Boolean         @default(true)
+  startDate          DateTime        @default(now())
+  endDate            DateTime?
+  minPurchaseAmount  Float?
+  maxDiscountAmount  Float?
+  usageLimit         Int?
+  usageCount         Int             @default(0)
+  priority           Int             @default(0)
+  shop               String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  usages             DiscountUsage[]
+}
+
+model DiscountUsage {
+  id         String   @id @default(uuid())
+  discountId String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  customerId String?
+  cartId     String?
+  appliedAt  DateTime @default(now())
+  orderValue Float?
+
+  @@index([discountId])
+  @@index([customerId])
+}
