@@ -1,373 +1,483 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { json } from "@remix-run/node";
-import { useActionData, useLoaderData, useSubmit } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
+import {
+  Page,
+  Layout,
+  Card,
+  FormLayout,
+  TextField,
+  Select,
+  Button,
+  DataTable,
+  BlockStack,
+  InlineStack,
+  Text,
+  Badge,
+  Modal,
+  ResourceList,
+  ResourceItem,
+  Checkbox,
+  Banner,
+} from "@shopify/polaris";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import {
+  getAllDiscounts,
+  createDiscount,
+  updateDiscount,
+  deleteDiscount,
+} from "../models/discount.server";
+import {
+  fetchProducts,
+  syncDiscountToProducts,
+  removeDiscountFromProducts,
+} from "../utils/shopify-products.server";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
 
-  const discounts = await db.discount.findMany({
-    where: {
-      shop: session.shop,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      _count: {
-        select: { usages: true },
-      },
-    },
-  });
+  // Fetch all discounts from database
+  const discounts = await getAllDiscounts();
 
-  return json({ discounts });
+  // Fetch products from Shopify using utility function
+  const products = await fetchProducts(admin);
+
+  return json({ discounts, products });
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
-  const action = formData.get("action");
+  const action = formData.get("_action");
 
-  try {
-    if (action === "create") {
-      const discount = await db.discount.create({
-        data: {
-          code: formData.get("code"),
-          type: formData.get("type"),
-          value: parseFloat(formData.get("value")),
-          description: formData.get("description"),
-          shop: session.shop,
-          startDate: new Date(formData.get("startDate")),
-          endDate: formData.get("endDate") ? new Date(formData.get("endDate")) : null,
-          minPurchaseAmount: formData.get("minPurchaseAmount")
-            ? parseFloat(formData.get("minPurchaseAmount"))
-            : null,
-          maxDiscountAmount: formData.get("maxDiscountAmount")
-            ? parseFloat(formData.get("maxDiscountAmount"))
-            : null,
-          usageLimit: formData.get("usageLimit")
-            ? parseInt(formData.get("usageLimit"))
-            : null,
-          priority: parseInt(formData.get("priority") || "0"),
-          active: formData.get("active") === "true",
-        },
+  if (action === "create") {
+    const name = formData.get("name");
+    const type = formData.get("type");
+    const value = parseFloat(formData.get("value"));
+    const productIds = JSON.parse(formData.get("productIds") || "[]");
+    const syncToShopify = formData.get("syncToShopify") === "true";
+
+    const discount = await createDiscount({ name, type, value, productIds });
+
+    // Sync to Shopify if requested and products are selected
+    if (syncToShopify && productIds.length > 0) {
+      const syncResult = await syncDiscountToProducts(admin, productIds, {
+        id: discount.id,
+        name,
+        type,
+        value,
       });
 
       return json({
         success: true,
         message: "Discount created successfully",
-        discount
+        syncResult,
       });
     }
 
-    if (action === "update") {
-      const id = formData.get("id");
-      const discount = await db.discount.update({
-        where: { id },
-        data: {
-          active: formData.get("active") === "true",
-        },
+    return json({ success: true, message: "Discount created successfully" });
+  }
+
+  if (action === "update") {
+    const id = formData.get("id");
+    const name = formData.get("name");
+    const type = formData.get("type");
+    const value = parseFloat(formData.get("value"));
+    const productIds = JSON.parse(formData.get("productIds") || "[]");
+    const syncToShopify = formData.get("syncToShopify") === "true";
+
+    await updateDiscount(id, { name, type, value, productIds });
+
+    // Sync to Shopify if requested and products are selected
+    if (syncToShopify && productIds.length > 0) {
+      const syncResult = await syncDiscountToProducts(admin, productIds, {
+        id,
+        name,
+        type,
+        value,
       });
 
       return json({
         success: true,
         message: "Discount updated successfully",
-        discount
+        syncResult,
       });
     }
 
-    if (action === "delete") {
-      const id = formData.get("id");
-      await db.discount.delete({
-        where: { id },
-      });
-
-      return json({
-        success: true,
-        message: "Discount deleted successfully"
-      });
-    }
-
-    return json({ success: false, message: "Invalid action" }, { status: 400 });
-  } catch (error) {
-    console.error("Discount action error:", error);
-    return json({
-      success: false,
-      message: error.message
-    }, { status: 500 });
+    return json({ success: true, message: "Discount updated successfully" });
   }
+
+  if (action === "delete") {
+    const id = formData.get("id");
+    const discount = await deleteDiscount(id);
+
+    // Remove discount metadata from products
+    if (discount.productIds && discount.productIds.length > 0) {
+      const productIds = JSON.parse(discount.productIds);
+      await removeDiscountFromProducts(admin, productIds);
+    }
+
+    return json({ success: true, message: "Discount deleted successfully" });
+  }
+
+  return json({ success: false, message: "Invalid action" });
 };
 
 export default function Discounts() {
-  const { discounts } = useLoaderData();
-  const actionData = useActionData();
+  const { discounts, products } = useLoaderData();
   const submit = useSubmit();
-  const [showForm, setShowForm] = useState(false);
+  const navigation = useNavigation();
+  const shopify = useAppBridge();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    submit(formData, { method: "post" });
-    setShowForm(false);
-  };
+  // Form state
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    type: "percentage",
+    value: "",
+    productIds: [],
+    syncToShopify: false,
+  });
 
-  const toggleDiscount = (discount) => {
-    const formData = new FormData();
-    formData.append("action", "update");
-    formData.append("id", discount.id);
-    formData.append("active", (!discount.active).toString());
-    submit(formData, { method: "post" });
-  };
+  // UI state
+  const [isEditing, setIsEditing] = useState(false);
+  const [productModalActive, setProductModalActive] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
-  const deleteDiscount = (id) => {
-    if (confirm("Are you sure you want to delete this discount?")) {
-      const formData = new FormData();
-      formData.append("action", "delete");
-      formData.append("id", id);
-      submit(formData, { method: "post" });
+  const isLoading = navigation.state === "submitting";
+
+  useEffect(() => {
+    if (navigation.state === "idle" && navigation.formData) {
+      // Reset form after successful submission
+      setFormData({
+        id: "",
+        name: "",
+        type: "percentage",
+        value: "",
+        productIds: [],
+        syncToShopify: false,
+      });
+      setSelectedProducts([]);
+      setIsEditing(false);
+      shopify.toast.show(
+        navigation.formData.get("_action") === "delete"
+          ? "Discount deleted"
+          : isEditing
+            ? "Discount updated"
+            : "Discount created",
+      );
     }
+  }, [navigation.state, navigation.formData, isEditing, shopify]);
+
+  const handleSubmit = useCallback(() => {
+    const data = new FormData();
+    data.append("_action", isEditing ? "update" : "create");
+    if (isEditing) {
+      data.append("id", formData.id);
+    }
+    data.append("name", formData.name);
+    data.append("type", formData.type);
+    data.append("value", formData.value);
+    data.append("productIds", JSON.stringify(formData.productIds));
+    data.append("syncToShopify", formData.syncToShopify.toString());
+
+    submit(data, { method: "post" });
+  }, [formData, isEditing, submit]);
+
+  const handleEdit = useCallback((discount) => {
+    setFormData({
+      id: discount.id,
+      name: discount.name,
+      type: discount.type,
+      value: discount.value.toString(),
+      productIds: discount.productIds,
+      syncToShopify: false,
+    });
+    setSelectedProducts(discount.productIds);
+    setIsEditing(true);
+  }, []);
+
+  const handleDelete = useCallback(
+    (id) => {
+      if (confirm("Are you sure you want to delete this discount?")) {
+        const data = new FormData();
+        data.append("_action", "delete");
+        data.append("id", id);
+        submit(data, { method: "post" });
+      }
+    },
+    [submit],
+  );
+
+  const handleCancel = useCallback(() => {
+    setFormData({
+      id: "",
+      name: "",
+      type: "percentage",
+      value: "",
+      productIds: [],
+      syncToShopify: false,
+    });
+    setSelectedProducts([]);
+    setIsEditing(false);
+  }, []);
+
+  const openProductModal = useCallback(() => {
+    setProductModalActive(true);
+  }, []);
+
+  const closeProductModal = useCallback(() => {
+    setProductModalActive(false);
+  }, []);
+
+  const handleProductSelection = useCallback(() => {
+    setFormData((prev) => ({ ...prev, productIds: selectedProducts }));
+    setProductModalActive(false);
+  }, [selectedProducts]);
+
+  const toggleProductSelection = useCallback((productId) => {
+    setSelectedProducts((prev) => {
+      if (prev.includes(productId)) {
+        return prev.filter((id) => id !== productId);
+      }
+      return [...prev, productId];
+    });
+  }, []);
+
+  const getProductNames = (productIds) => {
+    return productIds
+      .map((id) => {
+        const product = products.find((p) => p.id === id);
+        return product ? product.title : "Unknown";
+      })
+      .join(", ");
   };
+
+  const discountRows = discounts.map((discount) => [
+    discount.name,
+    <Badge tone={discount.type === "percentage" ? "info" : "success"}>
+      {discount.type === "percentage" ? "Percentage" : "Fixed Amount"}
+    </Badge>,
+    discount.type === "percentage" ? `${discount.value}%` : `$${discount.value}`,
+    discount.productIds.length > 0
+      ? getProductNames(discount.productIds)
+      : "All products",
+    <InlineStack gap="200">
+      <Button size="slim" onClick={() => handleEdit(discount)}>
+        Edit
+      </Button>
+      <Button
+        size="slim"
+        tone="critical"
+        onClick={() => handleDelete(discount.id)}
+      >
+        Delete
+      </Button>
+    </InlineStack>,
+  ]);
 
   return (
-    <s-page title="Discount Management">
-      <s-section>
-        {actionData?.message && (
-          <s-banner status={actionData.success ? "success" : "critical"}>
-            {actionData.message}
-          </s-banner>
-        )}
+    <Page>
+      <TitleBar title="Discount Management" />
+      <BlockStack gap="500">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  {isEditing ? "Edit Discount" : "Create New Discount"}
+                </Text>
+                <FormLayout>
+                  <TextField
+                    label="Discount Name"
+                    value={formData.name}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, name: value }))
+                    }
+                    autoComplete="off"
+                  />
+                  <Select
+                    label="Discount Type"
+                    options={[
+                      { label: "Percentage", value: "percentage" },
+                      { label: "Fixed Amount", value: "fixed" },
+                    ]}
+                    value={formData.type}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, type: value }))
+                    }
+                  />
+                  <TextField
+                    label={
+                      formData.type === "percentage"
+                        ? "Discount Value (%)"
+                        : "Discount Value ($)"
+                    }
+                    type="number"
+                    value={formData.value}
+                    onChange={(value) =>
+                      setFormData((prev) => ({ ...prev, value }))
+                    }
+                    autoComplete="off"
+                    min="0"
+                    step={formData.type === "percentage" ? "1" : "0.01"}
+                  />
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodyMd">
+                      Selected Products: {formData.productIds.length} product(s)
+                    </Text>
+                    {formData.productIds.length > 0 && (
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {getProductNames(formData.productIds)}
+                      </Text>
+                    )}
+                    <Button onClick={openProductModal}>Select Products</Button>
+                  </BlockStack>
+                  <BlockStack gap="200">
+                    <Checkbox
+                      label="Sync discount metadata to Shopify products"
+                      checked={formData.syncToShopify}
+                      onChange={(value) =>
+                        setFormData((prev) => ({ ...prev, syncToShopify: value }))
+                      }
+                      helpText="When enabled, discount information will be saved as product metafields in Shopify for storefront access"
+                    />
+                    {formData.syncToShopify && formData.productIds.length === 0 && (
+                      <Banner tone="warning">
+                        Please select at least one product to sync discount metadata.
+                      </Banner>
+                    )}
+                  </BlockStack>
+                  <InlineStack gap="200">
+                    <Button
+                      variant="primary"
+                      onClick={handleSubmit}
+                      loading={isLoading}
+                    >
+                      {isEditing ? "Update Discount" : "Create Discount"}
+                    </Button>
+                    {isEditing && (
+                      <Button onClick={handleCancel}>Cancel</Button>
+                    )}
+                  </InlineStack>
+                </FormLayout>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
 
-        <div style={{ marginBottom: "20px" }}>
-          <s-button kind="primary" onPress={() => setShowForm(!showForm)}>
-            {showForm ? "Cancel" : "Create New Discount"}
-          </s-button>
-        </div>
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text as="h2" variant="headingMd">
+                    Active Discounts
+                  </Text>
+                  {discounts.length > 0 && (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        fetch('/api/sync-discounts', { method: 'POST' })
+                          .then(res => res.json())
+                          .then(data => {
+                            if (data.success) {
+                              shopify.toast.show('Discounts activated in cart!');
+                            } else {
+                              shopify.toast.show('Failed to activate discounts', { isError: true });
+                            }
+                          })
+                          .catch(() => {
+                            shopify.toast.show('Error activating discounts', { isError: true });
+                          });
+                      }}
+                    >
+                      Activate in Cart
+                    </Button>
+                  )}
+                </InlineStack>
+                {discounts.length === 0 ? (
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    No discounts created yet. Create your first discount above.
+                  </Text>
+                ) : (
+                  <>
+                    <Banner tone="info">
+                      <p>
+                        Click "Activate in Cart" to apply these discounts automatically at checkout.
+                        Customers will see discounts applied when they add qualifying products to their cart.
+                      </p>
+                    </Banner>
+                    <DataTable
+                      columnContentTypes={[
+                        "text",
+                        "text",
+                        "text",
+                        "text",
+                        "text",
+                      ]}
+                      headings={["Name", "Type", "Value", "Products", "Actions"]}
+                      rows={discountRows}
+                    />
+                  </>
+                )}
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </BlockStack>
 
-        {showForm && (
-          <s-card sectioned>
-            <form onSubmit={handleSubmit}>
-              <input type="hidden" name="action" value="create" />
+      <Modal
+        open={productModalActive}
+        onClose={closeProductModal}
+        title="Select Products"
+        primaryAction={{
+          content: "Done",
+          onAction: handleProductSelection,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: closeProductModal,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <ResourceList
+            resourceName={{ singular: "product", plural: "products" }}
+            items={products}
+            renderItem={(product) => {
+              const { id, title, featuredImage } = product;
+              const isSelected = selectedProducts.includes(id);
 
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                  Discount Code *
-                </label>
-                <input
-                  type="text"
-                  name="code"
-                  required
-                  placeholder="SAVE20"
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                  Discount Type *
-                </label>
-                <select
-                  name="type"
-                  required
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
+              return (
+                <ResourceItem
+                  id={id}
+                  media={
+                    featuredImage ? (
+                      <img
+                        src={featuredImage.url}
+                        alt={title}
+                        style={{ width: "50px", height: "50px" }}
+                      />
+                    ) : null
+                  }
+                  onClick={() => toggleProductSelection(id)}
                 >
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed">Fixed Amount</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                  Discount Value *
-                </label>
-                <input
-                  type="number"
-                  name="value"
-                  required
-                  step="0.01"
-                  min="0"
-                  placeholder="20"
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  placeholder="Save 20% on your order"
-                  rows={3}
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                <div>
-                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                    Start Date *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="startDate"
-                    required
-                    defaultValue={new Date().toISOString().slice(0, 16)}
-                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                    End Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="endDate"
-                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                <div>
-                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                    Min Purchase
-                  </label>
-                  <input
-                    type="number"
-                    name="minPurchaseAmount"
-                    step="0.01"
-                    min="0"
-                    placeholder="50.00"
-                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                    Max Discount
-                  </label>
-                  <input
-                    type="number"
-                    name="maxDiscountAmount"
-                    step="0.01"
-                    min="0"
-                    placeholder="100.00"
-                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                    Usage Limit
-                  </label>
-                  <input
-                    type="number"
-                    name="usageLimit"
-                    min="0"
-                    placeholder="100"
-                    style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                  Priority
-                </label>
-                <input
-                  type="number"
-                  name="priority"
-                  defaultValue="0"
-                  min="0"
-                  style={{ width: "100%", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <input
-                    type="checkbox"
-                    name="active"
-                    value="true"
-                    defaultChecked
-                  />
-                  <span>Active</span>
-                </label>
-              </div>
-
-              <s-button kind="primary" submit>Create Discount</s-button>
-            </form>
-          </s-card>
-        )}
-
-        <div style={{ marginTop: "20px" }}>
-          {discounts.length === 0 ? (
-            <s-empty-state heading="No discounts yet" image="/discount-icon.svg">
-              <p>Create your first discount to get started</p>
-            </s-empty-state>
-          ) : (
-            <div style={{ display: "grid", gap: "16px" }}>
-              {discounts.map((discount) => (
-                <s-card key={discount.id}>
-                  <div style={{ padding: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                      <div>
-                        <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: "600" }}>
-                          {discount.code}
-                        </h3>
-                        <p style={{ margin: "0 0 8px 0", color: "#666" }}>
-                          {discount.description || "No description"}
-                        </p>
-                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "14px" }}>
-                          <span>
-                            <strong>Type:</strong> {discount.type === "percentage" ? `${discount.value}%` : `$${discount.value}`}
-                          </span>
-                          <span>
-                            <strong>Used:</strong> {discount._count.usages}{discount.usageLimit ? ` / ${discount.usageLimit}` : ""}
-                          </span>
-                          {discount.minPurchaseAmount && (
-                            <span>
-                              <strong>Min Purchase:</strong> ${discount.minPurchaseAmount}
-                            </span>
-                          )}
-                          {discount.maxDiscountAmount && (
-                            <span>
-                              <strong>Max Discount:</strong> ${discount.maxDiscountAmount}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
-                          <span>Start: {new Date(discount.startDate).toLocaleDateString()}</span>
-                          {discount.endDate && (
-                            <span> | End: {new Date(discount.endDate).toLocaleDateString()}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <s-badge status={discount.active ? "success" : "attention"}>
-                          {discount.active ? "Active" : "Inactive"}
-                        </s-badge>
-                        <s-button
-                          size="slim"
-                          onPress={() => toggleDiscount(discount)}
-                        >
-                          {discount.active ? "Deactivate" : "Activate"}
-                        </s-button>
-                        <s-button
-                          size="slim"
-                          destructive
-                          onPress={() => deleteDiscount(discount.id)}
-                        >
-                          Delete
-                        </s-button>
-                      </div>
-                    </div>
-                  </div>
-                </s-card>
-              ))}
-            </div>
-          )}
-        </div>
-      </s-section>
-    </s-page>
+                  <InlineStack align="space-between">
+                    <Text variant="bodyMd" fontWeight="bold">
+                      {title}
+                    </Text>
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={() => toggleProductSelection(id)}
+                    />
+                  </InlineStack>
+                </ResourceItem>
+              );
+            }}
+          />
+        </Modal.Section>
+      </Modal>
+    </Page>
   );
 }

@@ -1,0 +1,152 @@
+name: Database Migrations
+
+on:
+  push:
+    paths:
+      - 'prisma/**'
+      - '.github/workflows/database.yml'
+  pull_request:
+    paths:
+      - 'prisma/**'
+
+jobs:
+  validate-migrations:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: product_discount_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/product_discount_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma Schema
+        run: npx prisma validate
+
+      - name: Check Migration History
+        run: |
+          echo "Checking migration files..."
+          if [ -d "prisma/migrations" ]; then
+            echo "Migration files found:"
+            ls -la prisma/migrations/
+          else
+            echo "No migrations directory found"
+          fi
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Migrations (Test Mode)
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Verify Database Schema
+        run: |
+          echo "Verifying database schema..."
+          npx prisma db pull --force
+          npx prisma format
+
+      - name: Check for Schema Drift
+        run: |
+          echo "Checking for schema drift..."
+          if ! git diff --quiet prisma/schema.prisma; then
+            echo "⚠️ Schema drift detected!"
+            git diff prisma/schema.prisma
+            echo "Please run 'npx prisma db pull' locally and commit the changes."
+            exit 1
+          else
+            echo "✅ No schema drift detected"
+          fi
+
+      - name: Test Migration Rollback
+        run: |
+          echo "Testing migration rollback capability..."
+          # Get last migration
+          LAST_MIGRATION=$(ls -t prisma/migrations | head -1)
+          echo "Last migration: $LAST_MIGRATION"
+
+          # Note: Prisma doesn't support automated rollback
+          # This is a reminder to test rollback manually
+          echo "⚠️ Remember to test rollback manually if needed"
+
+  migration-report:
+    name: Migration Report
+    runs-on: ubuntu-latest
+    needs: validate-migrations
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Migration Report
+        run: |
+          echo "### 📊 Database Migration Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "prisma/migrations" ]; then
+            echo "**Migration Files:**" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            ls -la prisma/migrations/ >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Schema:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`prisma" >> $GITHUB_STEP_SUMMARY
+          cat prisma/schema.prisma >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `### 🗄️ Database Migration Changes
+
+            The Prisma schema has been modified. Please review the migration carefully.
+
+            **✅ Migration validation passed**
+
+            - Schema validation: ✅ Passed
+            - Migration deployment: ✅ Success
+            - Schema drift check: ✅ No drift detected
+
+            **Important:**
+            - Ensure migrations are tested locally
+            - Verify no breaking changes for existing data
+            - Consider backward compatibility
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });

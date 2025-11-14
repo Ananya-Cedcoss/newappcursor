@@ -1,0 +1,74 @@
+{% comment %}
+  Product Discount Price Snippet
+  Shows original price (strikethrough) and discounted price by fetching from backend
+  Usage: {% render 'product-discount-price', product: product, variant: variant %}
+{% endcomment %}
+
+{% if variant %}
+  {% assign current_variant = variant %}
+{% else %}
+  {% assign current_variant = product.selected_or_first_available_variant %}
+{% endif %}
+
+<div
+  class="product-discount-price-wrapper"
+  id="discount-price-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  data-variant-price="{{ current_variant.price }}"
+>
+  <div class="product-price">
+    <span class="price">{{ current_variant.price | money }}</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const priceWrapper = document.getElementById('discount-price-' + productId);
+
+    if (!priceWrapper) return;
+
+    const variantPrice = parseInt(priceWrapper.dataset.variantPrice);
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          let discountedPrice = variantPrice;
+          let discountAmount = 0;
+
+          if (discount.type === 'percentage') {
+            discountAmount = (variantPrice * discount.value) / 100;
+            discountedPrice = variantPrice - discountAmount;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100;
+            discountedPrice = variantPrice - discountAmount;
+          }
+
+          const formatMoney = (cents) => '$' + (cents / 100).toFixed(2);
+
+          priceWrapper.innerHTML = `
+            <div class="product-discount-price">
+              <div class="price-wrapper">
+                <span class="price price--original">
+                  <s>${formatMoney(variantPrice)}</s>
+                </span>
+                <span class="price price--discounted">
+                  ${formatMoney(discountedPrice)}
+                </span>
+              </div>
+              <div class="discount-savings">
+                <span class="savings-label">You save:</span>
+                <span class="savings-amount">${formatMoney(discountAmount)} (${discount.value}${discount.type === 'percentage' ? '%' : ''})</span>
+              </div>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount price:', error);
+      });
+  })();
+</script>

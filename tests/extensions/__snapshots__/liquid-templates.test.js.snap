@@ -1,0 +1,327 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Liquid Template - Compilation Tests > Template Snapshots > should match snapshot for product-discount.liquid 1`] = `
+"{% comment %}
+  Product Discount Display Block
+  Fetches and displays discount information from backend API
+{% endcomment %}
+
+{{ 'product-discount.css' | asset_url | stylesheet_tag }}
+
+{% comment %} Always fetch from proxy for real-time discount data {% endcomment %}
+<div
+  class="product-discount-block"
+  id="discount-block-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  data-variant-price="{{ product.selected_or_first_available_variant.price }}"
+  style="display: none;"
+>
+  <div class="discount-loading">
+    <span class="loading-spinner"></span>
+    <span>Checking for discounts...</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const discountBlock = document.getElementById('discount-block-' + productId);
+
+    if (!discountBlock) return;
+
+    // Show loading state
+    discountBlock.style.display = 'block';
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          const originalPrice = {{ product.selected_or_first_available_variant.price }};
+          let discountedPrice = originalPrice;
+          let discountAmount = 0;
+
+          // Calculate discount
+          if (discount.type === 'percentage') {
+            discountAmount = (originalPrice * discount.value) / 100;
+            discountedPrice = originalPrice - discountAmount;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100; // Convert to cents
+            discountedPrice = originalPrice - discountAmount;
+          }
+
+          // Format currency
+          const formatMoney = (cents) => {
+            return '$' + (cents / 100).toFixed(2);
+          };
+
+          // Build discount message
+          const discountMessage = discount.type === 'percentage'
+            ? \`Save \${discount.value}% today!\`
+            : \`Save \${formatMoney(discountAmount)} today!\`;
+
+          // Render discount UI
+          discountBlock.innerHTML = \`
+            <div class="discount-badge">
+              <span class="discount-badge__icon">🎉</span>
+              <span class="discount-badge__label">{{ block.settings.badge_text | default: 'Special Offer' }}</span>
+            </div>
+
+            <div class="discount-info">
+              <h3 class="discount-info__name">\${discount.name}</h3>
+
+              <div class="discount-info__message">
+                <p class="discount-highlight">\${discountMessage}</p>
+              </div>
+
+              <div class="discount-info__amount">
+                \${discount.type === 'percentage'
+                  ? \`<span class="discount-percentage">\${discount.value}% OFF</span>\`
+                  : \`<span class="discount-fixed">\${formatMoney(discountAmount)} OFF</span>\`
+                }
+              </div>
+
+              <div class="discount-pricing">
+                <span class="original-price">
+                  <s>\${formatMoney(originalPrice)}</s>
+                </span>
+                <span class="discounted-price">
+                  \${formatMoney(discountedPrice)}
+                </span>
+                <span class="savings">
+                  Save \${formatMoney(discountAmount)}
+                </span>
+              </div>
+
+              <div class="discount-info__footer">
+                <p class="discount-auto-apply">
+                  ✓ Discount applied automatically at checkout
+                </p>
+              </div>
+            </div>
+          \`;
+
+          // Animate in
+          discountBlock.classList.add('discount-loaded');
+        } else {
+          // No discount available - hide the block
+          discountBlock.style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount:', error);
+        // Hide block on error
+        discountBlock.style.display = 'none';
+      });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product Discount",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Badge Text",
+      "default": "Special Offer"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_savings",
+      "label": "Show Savings Amount",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "discount_color",
+      "label": "Discount Color",
+      "default": "#ff0000"
+    }
+  ]
+}
+{% endschema %}
+"
+`;
+
+exports[`Liquid Template - Compilation Tests > Template Snapshots > should match snapshot for product-discount-badge.liquid 1`] = `
+"{% comment %}
+  Product Discount Badge Snippet
+  Displays a discount badge by fetching data from backend
+  Usage: {% render 'product-discount-badge', product: product %}
+{% endcomment %}
+
+<div
+  class="product-discount-badge-wrapper"
+  id="discount-badge-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  style="display: none;"
+>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const badgeWrapper = document.getElementById('discount-badge-' + productId);
+
+    if (!badgeWrapper) return;
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          const originalPrice = {{ product.selected_or_first_available_variant.price }};
+          let discountAmount = 0;
+
+          if (discount.type === 'percentage') {
+            discountAmount = (originalPrice * discount.value) / 100;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100;
+          }
+
+          const formatMoney = (cents) => '$' + (cents / 100).toFixed(2);
+
+          badgeWrapper.innerHTML = discount.type === 'percentage'
+            ? \`<div class="discount-badge discount-badge--percentage">
+                 <span class="discount-badge__value">-\${discount.value}%</span>
+               </div>\`
+            : \`<div class="discount-badge discount-badge--fixed">
+                 <span class="discount-badge__value">-\${formatMoney(discountAmount)}</span>
+               </div>\`;
+
+          badgeWrapper.style.display = 'inline-block';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount badge:', error);
+      });
+  })();
+</script>
+"
+`;
+
+exports[`Liquid Template - Compilation Tests > Template Snapshots > should match snapshot for product-discount-price.liquid 1`] = `
+"{% comment %}
+  Product Discount Price Snippet
+  Shows original price (strikethrough) and discounted price by fetching from backend
+  Usage: {% render 'product-discount-price', product: product, variant: variant %}
+{% endcomment %}
+
+{% if variant %}
+  {% assign current_variant = variant %}
+{% else %}
+  {% assign current_variant = product.selected_or_first_available_variant %}
+{% endif %}
+
+<div
+  class="product-discount-price-wrapper"
+  id="discount-price-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  data-variant-price="{{ current_variant.price }}"
+>
+  <div class="product-price">
+    <span class="price">{{ current_variant.price | money }}</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const priceWrapper = document.getElementById('discount-price-' + productId);
+
+    if (!priceWrapper) return;
+
+    const variantPrice = parseInt(priceWrapper.dataset.variantPrice);
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          let discountedPrice = variantPrice;
+          let discountAmount = 0;
+
+          if (discount.type === 'percentage') {
+            discountAmount = (variantPrice * discount.value) / 100;
+            discountedPrice = variantPrice - discountAmount;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100;
+            discountedPrice = variantPrice - discountAmount;
+          }
+
+          const formatMoney = (cents) => '$' + (cents / 100).toFixed(2);
+
+          priceWrapper.innerHTML = \`
+            <div class="product-discount-price">
+              <div class="price-wrapper">
+                <span class="price price--original">
+                  <s>\${formatMoney(variantPrice)}</s>
+                </span>
+                <span class="price price--discounted">
+                  \${formatMoney(discountedPrice)}
+                </span>
+              </div>
+              <div class="discount-savings">
+                <span class="savings-label">You save:</span>
+                <span class="savings-amount">\${formatMoney(discountAmount)} (\${discount.value}\${discount.type === 'percentage' ? '%' : ''})</span>
+              </div>
+            </div>
+          \`;
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount price:', error);
+      });
+  })();
+</script>
+"
+`;
+
+exports[`Liquid Template - Compilation Tests > Template Snapshots > should match snapshot for star_rating.liquid 1`] = `
+"{% assign avg_rating = block.settings.product.metafields.demo.avg_rating.value | round %}
+<span style="color:{{ block.settings.colour }}">
+  {% render 'stars', rating: avg_rating %}
+</span>
+{% if avg_rating >= 4 %}
+  <br>
+  <img src="{{ "thumbs-up.png" | asset_img_url: '15x' }}" height="15" width="15" loading="lazy">
+  {{ 'ratings.home.recommendationText' | t }}
+{% endif %}
+
+{% schema %}
+{
+  "name": "Star Rating",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "product", "autofill": true },
+    { "type": "color", "id": "colour", "label": "Star Colour", "default": "#ff0000" }
+  ]
+}
+{% endschema %}
+
+"
+`;
+
+exports[`Liquid Template - Compilation Tests > Template Snapshots > should match snapshot for stars.liquid 1`] = `
+"{{ 'ratings.stars.label' | t }}:
+
+{%- for i in (1..rating) -%}
+  ★
+{%- endfor -%}
+{%- assign blank_stars = 5 | minus: rating -%}
+{%- for i in (1..blank_stars) -%}
+  ☆
+{%- endfor -%}
+
+"
+`;

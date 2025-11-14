@@ -1,0 +1,147 @@
+{% comment %}
+  Product Discount Display Block
+  Fetches and displays discount information from backend API
+{% endcomment %}
+
+{{ 'product-discount.css' | asset_url | stylesheet_tag }}
+
+{% comment %} Always fetch from proxy for real-time discount data {% endcomment %}
+<div
+  class="product-discount-block"
+  id="discount-block-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  data-variant-price="{{ product.selected_or_first_available_variant.price }}"
+  style="display: none;"
+>
+  <div class="discount-loading">
+    <span class="loading-spinner"></span>
+    <span>Checking for discounts...</span>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const discountBlock = document.getElementById('discount-block-' + productId);
+
+    if (!discountBlock) return;
+
+    // Show loading state
+    discountBlock.style.display = 'block';
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          const originalPrice = {{ product.selected_or_first_available_variant.price }};
+          let discountedPrice = originalPrice;
+          let discountAmount = 0;
+
+          // Calculate discount
+          if (discount.type === 'percentage') {
+            discountAmount = (originalPrice * discount.value) / 100;
+            discountedPrice = originalPrice - discountAmount;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100; // Convert to cents
+            discountedPrice = originalPrice - discountAmount;
+          }
+
+          // Format currency
+          const formatMoney = (cents) => {
+            return '$' + (cents / 100).toFixed(2);
+          };
+
+          // Build discount message
+          const discountMessage = discount.type === 'percentage'
+            ? `Save ${discount.value}% today!`
+            : `Save ${formatMoney(discountAmount)} today!`;
+
+          // Render discount UI
+          discountBlock.innerHTML = `
+            <div class="discount-badge">
+              <span class="discount-badge__icon">🎉</span>
+              <span class="discount-badge__label">{{ block.settings.badge_text | default: 'Special Offer' }}</span>
+            </div>
+
+            <div class="discount-info">
+              <h3 class="discount-info__name">${discount.name}</h3>
+
+              <div class="discount-info__message">
+                <p class="discount-highlight">${discountMessage}</p>
+              </div>
+
+              <div class="discount-info__amount">
+                ${discount.type === 'percentage'
+                  ? `<span class="discount-percentage">${discount.value}% OFF</span>`
+                  : `<span class="discount-fixed">${formatMoney(discountAmount)} OFF</span>`
+                }
+              </div>
+
+              <div class="discount-pricing">
+                <span class="original-price">
+                  <s>${formatMoney(originalPrice)}</s>
+                </span>
+                <span class="discounted-price">
+                  ${formatMoney(discountedPrice)}
+                </span>
+                <span class="savings">
+                  Save ${formatMoney(discountAmount)}
+                </span>
+              </div>
+
+              <div class="discount-info__footer">
+                <p class="discount-auto-apply">
+                  ✓ Discount applied automatically at checkout
+                </p>
+              </div>
+            </div>
+          `;
+
+          // Animate in
+          discountBlock.classList.add('discount-loaded');
+        } else {
+          // No discount available - hide the block
+          discountBlock.style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount:', error);
+        // Hide block on error
+        discountBlock.style.display = 'none';
+      });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Product Discount",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "badge_text",
+      "label": "Badge Text",
+      "default": "Special Offer"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_savings",
+      "label": "Show Savings Amount",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "discount_color",
+      "label": "Discount Color",
+      "default": "#ff0000"
+    }
+  ]
+}
+{% endschema %}

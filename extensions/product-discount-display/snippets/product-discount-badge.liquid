@@ -1,0 +1,54 @@
+{% comment %}
+  Product Discount Badge Snippet
+  Displays a discount badge by fetching data from backend
+  Usage: {% render 'product-discount-badge', product: product %}
+{% endcomment %}
+
+<div
+  class="product-discount-badge-wrapper"
+  id="discount-badge-{{ product.id }}"
+  data-product-id="{{ product.id }}"
+  style="display: none;"
+>
+</div>
+
+<script>
+  (function() {
+    const productId = '{{ product.id }}';
+    const badgeWrapper = document.getElementById('discount-badge-' + productId);
+
+    if (!badgeWrapper) return;
+
+    // Fetch discount data from app proxy
+    fetch('/apps/discount-proxy/product-discount?productId=' + productId)
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.success && data.discount) {
+          const discount = data.discount;
+          const originalPrice = {{ product.selected_or_first_available_variant.price }};
+          let discountAmount = 0;
+
+          if (discount.type === 'percentage') {
+            discountAmount = (originalPrice * discount.value) / 100;
+          } else if (discount.type === 'fixed') {
+            discountAmount = discount.value * 100;
+          }
+
+          const formatMoney = (cents) => '$' + (cents / 100).toFixed(2);
+
+          badgeWrapper.innerHTML = discount.type === 'percentage'
+            ? `<div class="discount-badge discount-badge--percentage">
+                 <span class="discount-badge__value">-${discount.value}%</span>
+               </div>`
+            : `<div class="discount-badge discount-badge--fixed">
+                 <span class="discount-badge__value">-${formatMoney(discountAmount)}</span>
+               </div>`;
+
+          badgeWrapper.style.display = 'inline-block';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading discount badge:', error);
+      });
+  })();
+</script>

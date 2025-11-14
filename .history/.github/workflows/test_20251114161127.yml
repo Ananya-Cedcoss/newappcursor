@@ -1,0 +1,105 @@
+name: Test Suite
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: product_discount_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/product_discount_test
+      NODE_ENV: test
+      SHOPIFY_API_KEY: test_key
+      SHOPIFY_API_SECRET: test_secret
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run API Integration Tests
+        run: npm test -- tests/integration/api-endpoints.supertest.test.js
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run UI Component Tests
+        run: npm test -- tests/ui/
+
+      - name: Run Theme Extension Tests
+        run: npm test -- tests/extensions/
+
+      - name: Run Shopify Function Tests
+        run: npm test -- tests/functions/
+
+      - name: Generate Coverage Report
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 30
+
+      - name: Comment Coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./coverage/lcov.info
+          delete-old-comments: true

@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "6caf1084deca922d20727e78878646a9"
-name = "sustainable-marketplace-app"
+client_id = "d850c9e6ef7e7843c7c67e52ad0dd667"
+name = "product-discount"
 application_url = "https://example.com"
 embedded = true
 
@@ -22,7 +22,7 @@ api_version = "2026-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_discounts,write_discounts"
+scopes = "write_products"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]

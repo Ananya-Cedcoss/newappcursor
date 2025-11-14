@@ -1,0 +1,36 @@
+{
+  "ratings": {
+    "stars": {
+      "label": "Ratings"
+    },
+    "home": {
+      "recommendationText": "Recommended Product!"
+    }
+  },
+  "product_discount": {
+    "badge": {
+      "special_offer": "Special Offer",
+      "limited_time": "Limited Time",
+      "sale": "Sale"
+    },
+    "labels": {
+      "save": "Save",
+      "you_save": "You save",
+      "off": "OFF",
+      "discount": "Discount"
+    },
+    "price": {
+      "was": "Was",
+      "now": "Now",
+      "original": "Original Price",
+      "discounted": "Sale Price"
+    },
+    "loading": {
+      "message": "Loading discount information..."
+    },
+    "errors": {
+      "not_found": "No discount available",
+      "failed_to_load": "Failed to load discount"
+    }
+  }
+}

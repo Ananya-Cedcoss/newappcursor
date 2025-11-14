@@ -1,0 +1,21 @@
+# act configuration for local GitHub Actions testing
+# https://github.com/nektos/act
+
+# Use medium size image (includes Node.js)
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Environment variables for local testing
+--env NODE_ENV=test
+--env DATABASE_URL=postgresql://test:test@localhost:5432/product_discount_test
+
+# Secrets file (create .secrets file with your tokens)
+--secret-file .secrets
+
+# Verbose output
+--verbose
+
+# Reuse containers for faster runs
+--reuse
+
+# Bind local npm cache
+--bind $HOME/.npm:/root/.npm

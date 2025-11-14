@@ -1,0 +1,24 @@
+# Shopify Function Configuration
+# Learn more: https://shopify.dev/docs/apps/build/functions
+
+api_version = "2024-10"
+
+[[extensions]]
+uid = "c07d25bf-8800-534d-aa74-4af0d805ad40d02dbe2a"
+type = "function"
+name = "product-discount-function"
+handle = "product-discount-function"
+description = "Applies product discounts based on cart items"
+
+  [[extensions.targeting]]
+  target = "purchase.order-discount.run"
+  input_query = "src/run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.ui.paths]
+  create = "/"
+  details = "/"
