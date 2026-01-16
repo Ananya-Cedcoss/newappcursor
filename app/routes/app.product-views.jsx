@@ -13,24 +13,23 @@ import db from "../db.server";
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
-  const productAnalytics = await db.productAnalytics.findMany({
-    orderBy: { viewCount: "desc" },
+  const productViews = await db.productView.findMany({
+    orderBy: { count: "desc" },
   });
 
-  return json({ productAnalytics });
+  return json({ productViews });
 };
 
 export default function ProductViews() {
-  const { productAnalytics } = useLoaderData();
+  const { productViews } = useLoaderData();
 
-  const rows = productAnalytics.map((analytics) => [
-    analytics.productId,
-    analytics.viewCount.toString(),
-    new Date(analytics.lastViewedAt).toLocaleString(),
+  const rows = productViews.map((view) => [
+    view.productId,
+    view.count.toString(),
   ]);
 
   return (
-    <Page title="Product Analytics">
+    <Page title="Product Views">
       <BlockStack gap="400">
         <Card>
           <BlockStack gap="200">
@@ -38,14 +37,14 @@ export default function ProductViews() {
               Product View Analytics
             </Text>
             <Text variant="bodyMd" as="p" tone="subdued">
-              Track how many times each product has been viewed (debounced to 30 seconds)
+              Track how many times each product has been viewed
             </Text>
           </BlockStack>
         </Card>
         <Card>
           <DataTable
-            columnContentTypes={["text", "numeric", "text"]}
-            headings={["Product ID", "View Count", "Last Viewed At"]}
+            columnContentTypes={["text", "numeric"]}
+            headings={["Product ID", "View Count"]}
             rows={rows}
           />
         </Card>

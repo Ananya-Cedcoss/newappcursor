@@ -33,12 +33,10 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-model ProductAnalytics {
-  id            Int      @id @default(autoincrement())
-  productId     String
-  viewCount     Int      @default(0)
-  lastViewedAt  DateTime @default(now())
+model ProductView {
+  id         Int    @id @default(autoincrement())
+  productId  String
+  count      Int    @default(0)
 
   @@unique([productId])
-  @@map("product_analytics")
 }
