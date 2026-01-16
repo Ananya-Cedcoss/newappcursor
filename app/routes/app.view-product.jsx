@@ -26,7 +26,7 @@ export const action = async ({ request }) => {
   const productId = formData.get("productId");
 
   if (!productId) {
-    return { error: "Product ID is required" };
+    return { error: "Product ID is required to fill" };
   }
 
   try {
@@ -127,13 +127,13 @@ export default function ViewProduct() {
 
   return (
     <Page>
-      <TitleBar title="View Product" />
+      <TitleBar title="View Product " />
       <Layout>
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Enter Product ID to View
+                Enter Product ID to View the product details
               </Text>
               <InlineStack gap="300" align="start">
                 <div style={{ flexGrow: 1 }}>

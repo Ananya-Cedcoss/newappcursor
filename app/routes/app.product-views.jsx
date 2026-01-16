@@ -69,13 +69,13 @@ export default function ProductViews() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Export failed:", error);
+      console.error("Export is  failed:", error);
     }
   };
 
   return (
     <Page>
-      <TitleBar title="Product Analytics" />
+      <TitleBar title="Product Analytics dashboard" />
       <Layout>
         <Layout.Section>
           <Card>
