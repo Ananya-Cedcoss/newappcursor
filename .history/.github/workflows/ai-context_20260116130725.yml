@@ -2,6 +2,8 @@ name: Generate AI Context
 
 on:
   push:
+    branches:
+      - main
 
 jobs:
   ai-context:
