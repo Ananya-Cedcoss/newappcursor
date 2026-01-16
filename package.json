@@ -1,5 +1,5 @@
 {
-  "name": "diversified-transaction-app",
+  "name": "ethical-outsource-app",
   "private": true,
   "scripts": {
     "build": "remix vite:build",
