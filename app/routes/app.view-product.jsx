@@ -133,7 +133,7 @@ export default function ViewProduct() {
           <Card>
             <BlockStack gap="400">
               <Text as="h2" variant="headingMd">
-                Enter Product ID to View the product details
+                Enter Product ID to View
               </Text>
               <InlineStack gap="300" align="start">
                 <div style={{ flexGrow: 1 }}>
