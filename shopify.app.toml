@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "386dde8fcd61f70039dd3d34a2941d25"
-name = "ethical-outsource-app"
+client_id = "395a3743a6d92275b3ff7a337375487b"
+name = "empowered-logistics-app"
 application_url = "https://example.com"
 embedded = true
 
