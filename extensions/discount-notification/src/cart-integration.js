@@ -142,6 +142,8 @@ class DiscountNotificationClient {
       </div>
     `;
 
+
+    
     // Add styles
     this.injectStyles();
 
